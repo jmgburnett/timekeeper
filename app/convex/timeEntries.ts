@@ -77,12 +77,12 @@ export const getWeekSummary = query({
 		// Enrich with account names
 		const summary = await Promise.all(
 			Array.from(byAccount.values()).map(async (item) => {
-				const account = await ctx.db.get(item.accountId as any);
+				const account = await ctx.db.get(item.accountId as any) as any;
 				return {
 					accountId: item.accountId,
 					accountName: account?.name ?? "Unknown",
-					accountCode: (account as any)?.code,
-					accountColor: (account as any)?.color,
+					accountCode: account?.code,
+					accountColor: account?.color,
 					totalHours: item.hours,
 					memberCount: item.members.size,
 				};

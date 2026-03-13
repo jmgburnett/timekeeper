@@ -77,11 +77,11 @@ export const sendReminders = action({
 			return { sent: 0, error: "Slack not configured" };
 		}
 
-		const pendingMembers = await ctx.runQuery(internal.slack.getPendingForWeek, {
+		const pendingMembers: Array<{ _id: any; name: string; email: string; slackUserId?: string; role: string; isActive: boolean; createdAt: number }> = await ctx.runQuery(internal.slack.getPendingForWeek, {
 			weekStart: args.weekStart,
 		});
 
-		const slackMembers = pendingMembers.filter((m) => m.slackUserId);
+		const slackMembers = pendingMembers.filter((m: any) => m.slackUserId);
 
 		let sent = 0;
 		for (const member of slackMembers) {
@@ -142,7 +142,7 @@ export const sendReminders = action({
 
 		// Also post to reminder channel if configured
 		if (config.reminderChannel && pendingMembers.length > 0) {
-			const names = pendingMembers.map((m) => m.name).join(", ");
+			const names = pendingMembers.map((m: any) => m.name).join(", ");
 			await fetch("https://slack.com/api/chat.postMessage", {
 				method: "POST",
 				headers: {
