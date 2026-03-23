@@ -2,25 +2,38 @@
 
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
 	WeekSelector,
 	getCurrentWeekStart,
 } from "./components/week-selector";
 
 export default function Dashboard() {
-	const [weekStart, setWeekStart] = useState(getCurrentWeekStart);
+	const [weekStart, setWeekStart] = useState<string>("");
+	const [mounted, setMounted] = useState(false);
 
-	const byCustomer = useQuery(api.reports.hoursByCustomer, { weekStart });
-	const byCapability = useQuery(api.reports.hoursByCapability, { weekStart });
-	const byEmployee = useQuery(api.reports.hoursByEmployee, { weekStart });
-	const capSummary = useQuery(api.reports.capitalizableSummary, { weekStart });
-	const detail = useQuery(api.reports.detailReport, { weekStart });
-	const submissions = useQuery(api.weeklySubmissions.listByWeek, { weekStart });
+	useEffect(() => {
+		setWeekStart(getCurrentWeekStart());
+		setMounted(true);
+	}, []);
+
+	const queryArgs = weekStart ? { weekStart } : "skip";
+	const byCustomer = useQuery(api.reports.hoursByCustomer, queryArgs);
+	const byCapability = useQuery(api.reports.hoursByCapability, queryArgs);
+	const byEmployee = useQuery(api.reports.hoursByEmployee, queryArgs);
+	const capSummary = useQuery(api.reports.capitalizableSummary, queryArgs);
+	const detail = useQuery(api.reports.detailReport, queryArgs);
+	const submissions = useQuery(api.weeklySubmissions.listByWeek, queryArgs);
 	const participants = useQuery(api.participants.listActive);
-	const nonSubmitted = useQuery(api.participants.listNonSubmitted, {
-		weekStart,
-	});
+	const nonSubmitted = useQuery(api.participants.listNonSubmitted, queryArgs);
+
+	if (!mounted) {
+		return (
+			<div className="flex items-center justify-center h-64">
+				<p className="text-gray-400">Loading...</p>
+			</div>
+		);
+	}
 
 	const siteUrl = process.env.NEXT_PUBLIC_CONVEX_SITE_URL;
 	const csvUrl = siteUrl
