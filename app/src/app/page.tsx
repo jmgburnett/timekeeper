@@ -1,307 +1,230 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import type { Id } from "../../convex/_generated/dataModel";
+import { useState } from "react";
+import {
+	WeekSelector,
+	getCurrentWeekStart,
+} from "./components/week-selector";
 
-function getWeekStart(date: Date = new Date()): string {
-	const d = new Date(date);
-	const day = d.getDay();
-	const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-	d.setDate(diff);
-	return d.toISOString().split("T")[0];
-}
+export default function Dashboard() {
+	const [weekStart, setWeekStart] = useState(getCurrentWeekStart);
 
-function formatWeek(weekStart: string): string {
-	const start = new Date(weekStart + "T00:00:00");
-	const end = new Date(start);
-	end.setDate(end.getDate() + 4);
-	return `${start.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${end.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
-}
+	const byCustomer = useQuery(api.reports.hoursByCustomer, { weekStart });
+	const byCapability = useQuery(api.reports.hoursByCapability, { weekStart });
+	const byEmployee = useQuery(api.reports.hoursByEmployee, { weekStart });
+	const capSummary = useQuery(api.reports.capitalizableSummary, { weekStart });
+	const detail = useQuery(api.reports.detailReport, { weekStart });
+	const submissions = useQuery(api.weeklySubmissions.listByWeek, { weekStart });
+	const participants = useQuery(api.participants.listActive);
+	const nonSubmitted = useQuery(api.participants.listNonSubmitted, {
+		weekStart,
+	});
 
-function TimeEntryRow({
-	accountId,
-	accountName,
-	accountCode,
-	accountColor,
-	hours,
-	memberId,
-	weekStart,
-}: {
-	accountId: Id<"accounts">;
-	accountName: string;
-	accountCode?: string;
-	accountColor?: string;
-	hours: number;
-	memberId: Id<"members">;
-	weekStart: string;
-}) {
-	const [value, setValue] = useState(String(hours));
-	const upsert = useMutation(api.timeEntries.upsert);
-
-	const handleBlur = () => {
-		const num = parseFloat(value) || 0;
-		if (num !== hours) {
-			upsert({ memberId, accountId, weekStart, hours: num });
-		}
-	};
+	const siteUrl = process.env.NEXT_PUBLIC_CONVEX_SITE_URL;
+	const csvUrl = siteUrl
+		? `${siteUrl}/csv/report?weekStart=${weekStart}`
+		: "#";
 
 	return (
-		<div className="flex items-center gap-3 py-3 px-4 border-b border-gray-100 hover:bg-gray-50 transition-colors">
-			<div
-				className="w-2 h-8 rounded-full shrink-0"
-				style={{ backgroundColor: accountColor || "#6366f1" }}
-			/>
-			<div className="flex-1 min-w-0">
-				<span className="font-medium text-gray-900">{accountName}</span>
-				{accountCode && (
-					<span className="ml-2 text-xs text-gray-400 font-mono">{accountCode}</span>
-				)}
+		<div className="space-y-6 max-w-6xl">
+			<div className="flex items-center justify-between">
+				<h2 className="text-2xl font-bold">Dashboard</h2>
+				<WeekSelector weekStart={weekStart} onChange={setWeekStart} />
 			</div>
-			<div className="flex items-center gap-1">
-				<input
-					type="number"
-					min="0"
-					max="80"
-					step="0.5"
-					value={value}
-					onChange={(e) => setValue(e.target.value)}
-					onBlur={handleBlur}
-					className="w-16 text-right px-2 py-1.5 rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none text-sm font-mono"
-				/>
-				<span className="text-xs text-gray-400 w-4">hrs</span>
-			</div>
-		</div>
-	);
-}
 
-function WeeklyView({ memberId, weekStart }: { memberId: Id<"members">; weekStart: string }) {
-	const entries = useQuery(api.timeEntries.getWeek, { memberId, weekStart });
-	const accounts = useQuery(api.accounts.list);
-	const submitWeek = useMutation(api.timeEntries.submitWeek);
-
-	if (!accounts || !entries) {
-		return <div className="text-center py-12 text-gray-400">Loading...</div>;
-	}
-
-	const entryMap = new Map(entries.map((e) => [e.accountId, e.hours]));
-	const totalHours = entries.reduce((sum, e) => sum + e.hours, 0);
-
-	return (
-		<div>
-			<div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-				<div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-					<h3 className="font-semibold text-gray-900">Time Allocation</h3>
-					<div className="flex items-center gap-3">
-						<span className="text-sm text-gray-500">
-							Total: <span className="font-mono font-bold text-gray-900">{totalHours}h</span>
-						</span>
-						{totalHours >= 40 && (
-							<span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">
-								✓ Full week
-							</span>
-						)}
-					</div>
+			{/* Submission Status */}
+			<section className="bg-white rounded-lg border border-gray-200 p-4">
+				<h3 className="text-lg font-semibold mb-3">Submission Status</h3>
+				<div className="flex gap-6 text-sm mb-3">
+					<span className="text-green-600 font-medium">
+						✅ Submitted: {submissions?.filter((s) => s.status !== "pending").length ?? 0}
+					</span>
+					<span className="text-amber-600 font-medium">
+						⏳ Pending: {nonSubmitted?.length ?? 0}
+					</span>
+					<span className="text-gray-500">
+						Total: {participants?.length ?? 0} participants
+					</span>
 				</div>
-
-				{accounts.map((account) => (
-					<TimeEntryRow
-						key={account._id}
-						accountId={account._id}
-						accountName={account.name}
-						accountCode={account.code}
-						accountColor={account.color}
-						hours={entryMap.get(account._id) ?? 0}
-						memberId={memberId}
-						weekStart={weekStart}
-					/>
-				))}
-
-				{accounts.length === 0 && (
-					<div className="py-8 text-center text-gray-400 text-sm">
-						No accounts yet. Add accounts in Settings.
+				{nonSubmitted && nonSubmitted.length > 0 && (
+					<div className="text-sm text-gray-600">
+						<span className="font-medium">Not submitted: </span>
+						{nonSubmitted.map((p) => p.name).join(", ")}
 					</div>
 				)}
-			</div>
+			</section>
 
-			<div className="mt-4 flex justify-end">
-				<button
-					type="button"
-					onClick={() => submitWeek({ memberId, weekStart })}
-					disabled={totalHours === 0}
-					className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-medium text-sm hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-				>
-					Submit Week
-				</button>
-			</div>
-		</div>
-	);
-}
-
-function Dashboard({ weekStart }: { weekStart: string }) {
-	const summary = useQuery(api.timeEntries.getWeekSummary, { weekStart });
-	const status = useQuery(api.timeEntries.getSubmissionStatus, { weekStart });
-
-	return (
-		<div className="space-y-6">
-			{/* Submission progress */}
-			{status && (
-				<div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-					<h3 className="font-semibold text-gray-900 mb-3">Submission Progress</h3>
-					<div className="flex items-center gap-3 mb-2">
-						<div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-							<div
-								className="h-full bg-indigo-500 rounded-full transition-all"
-								style={{
-									width: `${status.totalMembers > 0 ? (status.submittedCount / status.totalMembers) * 100 : 0}%`,
-								}}
-							/>
-						</div>
-						<span className="text-sm font-mono text-gray-600">
-							{status.submittedCount}/{status.totalMembers}
-						</span>
-					</div>
-					{status.submissions.length > 0 && (
-						<div className="flex flex-wrap gap-2 mt-3">
-							{status.submissions.map((s: any) => (
-								<span
-									key={s._id}
-									className={`text-xs px-2 py-1 rounded-full font-medium ${
-										s.status === "submitted"
-											? "bg-green-100 text-green-700"
-											: s.status === "approved"
-												? "bg-blue-100 text-blue-700"
-												: "bg-gray-100 text-gray-500"
-									}`}
-								>
-									{s.memberName}: {s.totalHours}h
-								</span>
+			{/* Rollup Tables */}
+			<div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+				{/* Hours by Customer */}
+				<section className="bg-white rounded-lg border border-gray-200 p-4">
+					<h3 className="text-lg font-semibold mb-3">Hours by Customer</h3>
+					<table className="w-full text-sm">
+						<thead>
+							<tr className="border-b border-gray-200">
+								<th className="text-left py-2 font-medium text-gray-600">Customer</th>
+								<th className="text-right py-2 font-medium text-gray-600">Total</th>
+								<th className="text-right py-2 font-medium text-gray-600">Cap.</th>
+							</tr>
+						</thead>
+						<tbody>
+							{byCustomer?.map((r) => (
+								<tr key={r.customer} className="border-b border-gray-100">
+									<td className="py-2">{r.customer}</td>
+									<td className="text-right py-2">{r.total}</td>
+									<td className="text-right py-2">{r.capitalizable}</td>
+								</tr>
 							))}
-						</div>
+							{byCustomer?.length === 0 && (
+								<tr>
+									<td colSpan={3} className="py-4 text-center text-gray-400">
+										No entries this week
+									</td>
+								</tr>
+							)}
+						</tbody>
+					</table>
+				</section>
+
+				{/* Hours by Capability */}
+				<section className="bg-white rounded-lg border border-gray-200 p-4">
+					<h3 className="text-lg font-semibold mb-3">Hours by Capability</h3>
+					<table className="w-full text-sm">
+						<thead>
+							<tr className="border-b border-gray-200">
+								<th className="text-left py-2 font-medium text-gray-600">Capability</th>
+								<th className="text-right py-2 font-medium text-gray-600">Total</th>
+								<th className="text-right py-2 font-medium text-gray-600">Cap.</th>
+							</tr>
+						</thead>
+						<tbody>
+							{byCapability?.map((r) => (
+								<tr key={r.capability} className="border-b border-gray-100">
+									<td className="py-2">{r.capability}</td>
+									<td className="text-right py-2">{r.total}</td>
+									<td className="text-right py-2">{r.capitalizable}</td>
+								</tr>
+							))}
+							{byCapability?.length === 0 && (
+								<tr>
+									<td colSpan={3} className="py-4 text-center text-gray-400">
+										No entries this week
+									</td>
+								</tr>
+							)}
+						</tbody>
+					</table>
+				</section>
+
+				{/* Hours by Employee */}
+				<section className="bg-white rounded-lg border border-gray-200 p-4">
+					<h3 className="text-lg font-semibold mb-3">Hours by Employee</h3>
+					<table className="w-full text-sm">
+						<thead>
+							<tr className="border-b border-gray-200">
+								<th className="text-left py-2 font-medium text-gray-600">Employee</th>
+								<th className="text-right py-2 font-medium text-gray-600">Hours</th>
+							</tr>
+						</thead>
+						<tbody>
+							{byEmployee?.map((r) => (
+								<tr key={r.employee} className="border-b border-gray-100">
+									<td className="py-2">{r.employee}</td>
+									<td className="text-right py-2">{r.totalHours}</td>
+								</tr>
+							))}
+							{byEmployee?.length === 0 && (
+								<tr>
+									<td colSpan={2} className="py-4 text-center text-gray-400">
+										No entries this week
+									</td>
+								</tr>
+							)}
+						</tbody>
+					</table>
+				</section>
+
+				{/* Capitalizable Summary */}
+				<section className="bg-white rounded-lg border border-gray-200 p-4">
+					<h3 className="text-lg font-semibold mb-3">Capitalizable Summary</h3>
+					{capSummary && (
+						<table className="w-full text-sm">
+							<thead>
+								<tr className="border-b border-gray-200">
+									<th className="text-left py-2 font-medium text-gray-600">Type</th>
+									<th className="text-right py-2 font-medium text-gray-600">Hours</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr className="border-b border-gray-100">
+									<td className="py-2">Capitalizable</td>
+									<td className="text-right py-2">{capSummary.capitalizable}</td>
+								</tr>
+								<tr className="border-b border-gray-100">
+									<td className="py-2">Non-Capitalizable</td>
+									<td className="text-right py-2">{capSummary.nonCapitalizable}</td>
+								</tr>
+								<tr className="font-medium">
+									<td className="py-2">Total</td>
+									<td className="text-right py-2">{capSummary.total}</td>
+								</tr>
+							</tbody>
+						</table>
 					)}
+				</section>
+			</div>
+
+			{/* Detail Report */}
+			<section className="bg-white rounded-lg border border-gray-200 p-4">
+				<div className="flex items-center justify-between mb-3">
+					<h3 className="text-lg font-semibold">Detail Report</h3>
+					<a
+						href={csvUrl}
+						target="_blank"
+						rel="noopener noreferrer"
+						className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+					>
+						📥 Export CSV
+					</a>
 				</div>
-			)}
-
-			{/* Account breakdown */}
-			{summary && summary.length > 0 && (
-				<div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-					<h3 className="font-semibold text-gray-900 mb-3">Hours by Account</h3>
-					<div className="space-y-2">
-						{summary.map((s: any) => (
-							<div key={s.accountId} className="flex items-center gap-3">
-								<div
-									className="w-2 h-6 rounded-full shrink-0"
-									style={{ backgroundColor: s.accountColor || "#6366f1" }}
-								/>
-								<span className="flex-1 text-sm font-medium text-gray-900">
-									{s.accountName}
-									{s.accountCode && (
-										<span className="ml-1.5 text-gray-400 font-mono text-xs">{s.accountCode}</span>
-									)}
-								</span>
-								<span className="text-sm font-mono text-gray-600">
-									{s.totalHours}h
-								</span>
-								<span className="text-xs text-gray-400">
-									{s.memberCount} {s.memberCount === 1 ? "person" : "people"}
-								</span>
-							</div>
-						))}
-					</div>
+				<div className="overflow-x-auto">
+					<table className="w-full text-sm">
+						<thead>
+							<tr className="border-b border-gray-200">
+								<th className="text-left py-2 font-medium text-gray-600">Employee</th>
+								<th className="text-left py-2 font-medium text-gray-600">Customer</th>
+								<th className="text-left py-2 font-medium text-gray-600">Capability</th>
+								<th className="text-right py-2 font-medium text-gray-600">Hours</th>
+								<th className="text-center py-2 font-medium text-gray-600">Cap.</th>
+								<th className="text-left py-2 font-medium text-gray-600">Comments</th>
+							</tr>
+						</thead>
+						<tbody>
+							{detail?.map((e) => (
+								<tr key={e._id} className="border-b border-gray-100">
+									<td className="py-2">{e.employeeName}</td>
+									<td className="py-2">{e.customer}</td>
+									<td className="py-2">{e.capability}</td>
+									<td className="text-right py-2">{e.hours}</td>
+									<td className="text-center py-2">
+										{e.capitalizable ? "✅" : "—"}
+									</td>
+									<td className="py-2 text-gray-600">{e.comments || "—"}</td>
+								</tr>
+							))}
+							{detail?.length === 0 && (
+								<tr>
+									<td colSpan={6} className="py-4 text-center text-gray-400">
+										No entries this week
+									</td>
+								</tr>
+							)}
+						</tbody>
+					</table>
 				</div>
-			)}
-		</div>
-	);
-}
-
-export default function Home() {
-	const [weekStart, setWeekStart] = useState(getWeekStart());
-	const [view, setView] = useState<"log" | "dashboard">("log");
-	const [selectedMemberId, setSelectedMemberId] = useState<Id<"members"> | null>(null);
-
-	const members = useQuery(api.members.list);
-
-	// Auto-select first member (for demo; real app would use auth)
-	const memberId = selectedMemberId ?? members?.[0]?._id;
-
-	const prevWeek = () => {
-		const d = new Date(weekStart + "T00:00:00");
-		d.setDate(d.getDate() - 7);
-		setWeekStart(d.toISOString().split("T")[0]);
-	};
-
-	const nextWeek = () => {
-		const d = new Date(weekStart + "T00:00:00");
-		d.setDate(d.getDate() + 7);
-		setWeekStart(d.toISOString().split("T")[0]);
-	};
-
-	return (
-		<div className="min-h-screen bg-gray-50">
-			{/* Header */}
-			<header className="bg-white border-b border-gray-200">
-				<div className="max-w-3xl mx-auto px-4 py-4">
-					<div className="flex items-center justify-between mb-4">
-						<h1 className="text-xl font-bold text-gray-900">⏱ Timekeeper</h1>
-						{members && members.length > 1 && (
-							<select
-								value={memberId ?? ""}
-								onChange={(e) => setSelectedMemberId(e.target.value as Id<"members">)}
-								className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 outline-none focus:border-indigo-500"
-							>
-								{members.map((m) => (
-									<option key={m._id} value={m._id}>
-										{m.name}
-									</option>
-								))}
-							</select>
-						)}
-					</div>
-
-					{/* Week navigator */}
-					<div className="flex items-center justify-between">
-						<button type="button" onClick={prevWeek} className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-600">
-							←
-						</button>
-						<span className="text-sm font-medium text-gray-700">{formatWeek(weekStart)}</span>
-						<button type="button" onClick={nextWeek} className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-600">
-							→
-						</button>
-					</div>
-
-					{/* View tabs */}
-					<div className="flex gap-1 mt-3">
-						{(["log", "dashboard"] as const).map((v) => (
-							<button
-								key={v}
-								type="button"
-								onClick={() => setView(v)}
-								className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-									view === v
-										? "bg-indigo-100 text-indigo-700"
-										: "text-gray-500 hover:bg-gray-100"
-								}`}
-							>
-								{v === "log" ? "Log Time" : "Dashboard"}
-							</button>
-						))}
-					</div>
-				</div>
-			</header>
-
-			{/* Content */}
-			<main className="max-w-3xl mx-auto px-4 py-6">
-				{view === "log" && memberId ? (
-					<WeeklyView memberId={memberId} weekStart={weekStart} />
-				) : view === "dashboard" ? (
-					<Dashboard weekStart={weekStart} />
-				) : (
-					<div className="text-center py-12 text-gray-400">
-						No team members yet. Add members to get started.
-					</div>
-				)}
-			</main>
+			</section>
 		</div>
 	);
 }

@@ -8,10 +8,13 @@
  * @module
  */
 
-import type * as accounts from "../accounts.js";
-import type * as members from "../members.js";
-import type * as slack from "../slack.js";
+import type * as capabilities from "../capabilities.js";
+import type * as customers from "../customers.js";
+import type * as http from "../http.js";
+import type * as participants from "../participants.js";
+import type * as reports from "../reports.js";
 import type * as timeEntries from "../timeEntries.js";
+import type * as weeklySubmissions from "../weeklySubmissions.js";
 
 import type {
   ApiFromModules,
@@ -20,10 +23,13 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  accounts: typeof accounts;
-  members: typeof members;
-  slack: typeof slack;
+  capabilities: typeof capabilities;
+  customers: typeof customers;
+  http: typeof http;
+  participants: typeof participants;
+  reports: typeof reports;
   timeEntries: typeof timeEntries;
+  weeklySubmissions: typeof weeklySubmissions;
 }>;
 
 /**
