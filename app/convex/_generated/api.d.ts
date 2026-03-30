@@ -8,11 +8,16 @@
  * @module
  */
 
+import type * as admin from "../admin.js";
 import type * as capabilities from "../capabilities.js";
+import type * as crons from "../crons.js";
 import type * as customers from "../customers.js";
 import type * as http from "../http.js";
 import type * as participants from "../participants.js";
 import type * as reports from "../reports.js";
+import type * as slack_api from "../slack/api.js";
+import type * as slack_blocks from "../slack/blocks.js";
+import type * as slack_handlers from "../slack/handlers.js";
 import type * as timeEntries from "../timeEntries.js";
 import type * as weeklySubmissions from "../weeklySubmissions.js";
 
@@ -23,11 +28,16 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  admin: typeof admin;
   capabilities: typeof capabilities;
+  crons: typeof crons;
   customers: typeof customers;
   http: typeof http;
   participants: typeof participants;
   reports: typeof reports;
+  "slack/api": typeof slack_api;
+  "slack/blocks": typeof slack_blocks;
+  "slack/handlers": typeof slack_handlers;
   timeEntries: typeof timeEntries;
   weeklySubmissions: typeof weeklySubmissions;
 }>;

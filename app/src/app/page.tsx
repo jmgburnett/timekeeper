@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useQuery, useAction, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useState, useEffect } from "react";
 import {
@@ -11,6 +11,12 @@ import {
 export default function Dashboard() {
 	const [weekStart, setWeekStart] = useState<string>("");
 	const [mounted, setMounted] = useState(false);
+	const [sendingReminder, setSendingReminder] = useState(false);
+	const [reminderResult, setReminderResult] = useState<string | null>(null);
+	const [locking, setLocking] = useState(false);
+
+	const sendReminder = useAction(api.admin.sendManualReminder);
+	const lockWeek = useMutation(api.weeklySubmissions.lockWeek);
 
 	useEffect(() => {
 		setWeekStart(getCurrentWeekStart());
@@ -49,7 +55,48 @@ export default function Dashboard() {
 
 			{/* Submission Status */}
 			<section className="bg-white rounded-lg border border-gray-200 p-4">
-				<h3 className="text-lg font-semibold mb-3">Submission Status</h3>
+				<div className="flex items-center justify-between mb-3">
+					<h3 className="text-lg font-semibold">Submission Status</h3>
+					<div className="flex gap-2">
+						<button
+							onClick={async () => {
+								setSendingReminder(true);
+								setReminderResult(null);
+								try {
+									const result = await sendReminder({ weekStart });
+									setReminderResult(`Sent ${result.sent} of ${result.total} reminders`);
+									setTimeout(() => setReminderResult(null), 3000);
+								} catch (err) {
+									setReminderResult("Failed to send reminders");
+								} finally {
+									setSendingReminder(false);
+								}
+							}}
+							disabled={sendingReminder || !nonSubmitted?.length}
+							className="px-3 py-1.5 bg-amber-500 text-white text-sm rounded hover:bg-amber-600 disabled:opacity-50 transition-colors"
+						>
+							{sendingReminder ? "Sending..." : "📢 Send Reminder"}
+						</button>
+						<button
+							onClick={async () => {
+								if (!confirm(`Lock all entries for the week of ${weekStart}? This cannot be undone.`)) return;
+								setLocking(true);
+								try {
+									await lockWeek({ weekStart });
+								} finally {
+									setLocking(false);
+								}
+							}}
+							disabled={locking}
+							className="px-3 py-1.5 bg-red-600 text-white text-sm rounded hover:bg-red-700 disabled:opacity-50 transition-colors"
+						>
+							{locking ? "Locking..." : "🔒 Lock Week"}
+						</button>
+					</div>
+				</div>
+				{reminderResult && (
+					<div className="text-sm text-amber-600 mb-2">{reminderResult}</div>
+				)}
 				<div className="flex gap-6 text-sm mb-3">
 					<span className="text-green-600 font-medium">
 						✅ Submitted: {submissions?.filter((s) => s.status !== "pending").length ?? 0}
