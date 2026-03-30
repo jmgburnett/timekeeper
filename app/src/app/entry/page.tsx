@@ -7,12 +7,14 @@ import {
   WeekSelector,
   getCurrentWeekStart,
 } from "../components/week-selector";
+import { useAuth } from "../components/auth-context";
 
 export default function EntryPage() {
+  const { user } = useAuth();
   const [weekStart, setWeekStart] = useState("");
   const [mounted, setMounted] = useState(false);
 
-  // Form state
+  // Form state — admins can pick any user, employees are auto-scoped
   const [selectedUser, setSelectedUser] = useState("");
   const [customer, setCustomer] = useState("");
   const [capability, setCapability] = useState("");
@@ -22,11 +24,16 @@ export default function EntryPage() {
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
+  // Auto-set employee to themselves if not admin
   useEffect(() => {
     setWeekStart(getCurrentWeekStart());
     setMounted(true);
-  }, []);
+    if (user && !user.isAdmin) {
+      setSelectedUser(user.slackUserId);
+    }
+  }, [user]);
 
+  const isAdmin = user?.isAdmin ?? false;
   const participants = useQuery(api.participants.listActive);
   const customers = useQuery(api.customers.listActive);
   const capabilities = useQuery(api.capabilities.listActive);
@@ -136,27 +143,33 @@ export default function EntryPage() {
         <WeekSelector weekStart={weekStart} onChange={setWeekStart} />
       </div>
 
-      {/* Employee Selector */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Employee
-        </label>
-        <select
-          value={selectedUser}
-          onChange={(e) => {
-            setSelectedUser(e.target.value);
-            resetForm();
-          }}
-          className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="">Select an employee...</option>
-          {participants?.map((p) => (
-            <option key={p._id} value={p.slackUserId}>
-              {p.name}
-            </option>
-          ))}
-        </select>
-      </div>
+      {/* Employee Selector — only for admins */}
+      {isAdmin ? (
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Employee
+          </label>
+          <select
+            value={selectedUser}
+            onChange={(e) => {
+              setSelectedUser(e.target.value);
+              resetForm();
+            }}
+            className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Select an employee...</option>
+            {participants?.map((p) => (
+              <option key={p._id} value={p.slackUserId}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : (
+        <div className="bg-blue-50 rounded-lg border border-blue-200 p-3 text-sm text-blue-700">
+          Entering time as <strong>{user?.name}</strong>
+        </div>
+      )}
 
       {selectedUser && (
         <>
