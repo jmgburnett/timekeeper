@@ -3,10 +3,10 @@
 import {
   createContext,
   useContext,
-  useState,
-  useEffect,
   type ReactNode,
 } from "react";
+import { useConvexAuth, useQuery } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 
 interface AuthUser {
   participantId: string;
@@ -18,44 +18,44 @@ interface AuthUser {
 
 interface AuthContextType {
   user: AuthUser | null;
-  login: (user: AuthUser) => void;
-  logout: () => void;
   loading: boolean;
+  isAuthenticated: boolean;
+  notLinked: boolean;
+  notLinkedEmail?: string;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
-  login: () => {},
-  logout: () => {},
   loading: true,
+  isAuthenticated: false,
+  notLinked: false,
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
+  const me = useQuery(api.auth_helpers.me, isAuthenticated ? {} : "skip");
 
-  useEffect(() => {
-    const stored = localStorage.getItem("tk_user");
-    if (stored) {
-      try {
-        setUser(JSON.parse(stored));
-      } catch {}
-    }
-    setLoading(false);
-  }, []);
+  const loading = authLoading || (isAuthenticated && me === undefined);
 
-  const login = (u: AuthUser) => {
-    setUser(u);
-    localStorage.setItem("tk_user", JSON.stringify(u));
-  };
+  let user: AuthUser | null = null;
+  let notLinked = false;
+  let notLinkedEmail: string | undefined;
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem("tk_user");
-  };
+  if (me && !me.notLinked) {
+    user = {
+      participantId: me.participantId,
+      slackUserId: me.slackUserId,
+      name: me.name,
+      email: me.email,
+      isAdmin: me.isAdmin,
+    };
+  } else if (me && me.notLinked) {
+    notLinked = true;
+    notLinkedEmail = me.email;
+  }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, loading, isAuthenticated, notLinked, notLinkedEmail }}>
       {children}
     </AuthContext.Provider>
   );

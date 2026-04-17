@@ -9,6 +9,8 @@
  */
 
 import type * as admin from "../admin.js";
+import type * as auth from "../auth.js";
+import type * as auth_helpers from "../auth_helpers.js";
 import type * as capabilities from "../capabilities.js";
 import type * as crons from "../crons.js";
 import type * as customers from "../customers.js";
@@ -29,6 +31,8 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   admin: typeof admin;
+  auth: typeof auth;
+  auth_helpers: typeof auth_helpers;
   capabilities: typeof capabilities;
   crons: typeof crons;
   customers: typeof customers;

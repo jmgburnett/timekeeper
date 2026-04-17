@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
+import { useAuthActions } from "@convex-dev/auth/react";
 import { useAuth } from "./auth-context";
 
 const adminItems = [
@@ -19,8 +20,8 @@ const employeeItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
+  const { signOut } = useAuthActions();
 
   const navItems = user?.isAdmin ? adminItems : employeeItems;
 
@@ -60,10 +61,7 @@ export function Sidebar() {
             </p>
           </div>
           <button
-            onClick={() => {
-              logout();
-              router.replace("/login");
-            }}
+            onClick={() => signOut()}
             className="w-full text-left px-3 py-2 rounded-md text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
           >
             ↩ Sign out

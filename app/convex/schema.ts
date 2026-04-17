@@ -1,7 +1,9 @@
 import { defineSchema, defineTable } from "convex/server";
+import { authTables } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 
 export default defineSchema({
+	...authTables,
 	time_entries: defineTable({
 		weekStart: v.string(), // ISO date of Monday, e.g. "2026-03-17"
 		userId: v.string(), // Slack user ID
