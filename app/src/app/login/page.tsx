@@ -11,12 +11,6 @@ export default function LoginPage() {
   const { isAuthenticated } = useConvexAuth();
   const { user } = useAuth();
   const router = useRouter();
-
-  const [mode, setMode] = useState<"signIn" | "signUp">("signIn");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -25,25 +19,14 @@ export default function LoginPage() {
     }
   }, [isAuthenticated, user, router]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
+  const handleSlackSignIn = async () => {
     setLoading(true);
-
     try {
-      await signIn("password", {
-        email,
-        password,
-        flow: mode,
-        ...(mode === "signUp" ? { name } : {}),
-      });
-    } catch (err: any) {
-      setError(
-        mode === "signUp"
-          ? "Could not create account. Email may already be in use."
-          : "Invalid email or password."
-      );
-    } finally {
+      const result = await signIn("slack", { redirectTo: "/" });
+      if (result?.signingIn && result?.redirect) {
+        window.location.href = result.redirect.toString();
+      }
+    } catch {
       setLoading(false);
     }
   };
@@ -54,86 +37,25 @@ export default function LoginPage() {
         <div className="text-center mb-6">
           <h1 className="text-2xl font-bold text-gray-800">⏱ Timekeeper</h1>
           <p className="text-sm text-gray-500 mt-1">
-            {mode === "signIn" ? "Sign in to continue" : "Create your account"}
+            Sign in with your Gloo Slack account
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {mode === "signUp" && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Name
-              </label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Your name"
-                required
-              />
-            </div>
-          )}
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="you@company.com"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="••••••••"
-              required
-              minLength={8}
-            />
-          </div>
-
-          {error && (
-            <p className="text-sm text-red-600">{error}</p>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {loading
-              ? "Loading..."
-              : mode === "signIn"
-              ? "Sign In"
-              : "Create Account"}
-          </button>
-        </form>
-
-        <div className="mt-4 text-center">
-          <button
-            onClick={() => {
-              setMode(mode === "signIn" ? "signUp" : "signIn");
-              setError("");
-            }}
-            className="text-sm text-blue-600 hover:underline"
-          >
-            {mode === "signIn"
-              ? "Don't have an account? Sign up"
-              : "Already have an account? Sign in"}
-          </button>
-        </div>
+        <button
+          onClick={handleSlackSignIn}
+          disabled={loading}
+          className="w-full flex items-center justify-center gap-3 bg-[#4A154B] text-white py-3 px-4 rounded-md text-sm font-medium hover:bg-[#3a1139] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          <svg width="20" height="20" viewBox="0 0 54 54" xmlns="http://www.w3.org/2000/svg">
+            <g fill="none" fillRule="evenodd">
+              <path d="M19.712.133a5.381 5.381 0 00-5.376 5.387 5.381 5.381 0 005.376 5.386h5.376V5.52A5.381 5.381 0 0019.712.133m0 14.365H5.376A5.381 5.381 0 000 19.884a5.381 5.381 0 005.376 5.387h14.336a5.381 5.381 0 005.376-5.387 5.381 5.381 0 00-5.376-5.386" fill="#36C5F0"/>
+              <path d="M53.76 19.884a5.381 5.381 0 00-5.376-5.386 5.381 5.381 0 00-5.376 5.386v5.387h5.376a5.381 5.381 0 005.376-5.387m-14.336 0V5.52A5.381 5.381 0 0034.048.133a5.381 5.381 0 00-5.376 5.387v14.364a5.381 5.381 0 005.376 5.387 5.381 5.381 0 005.376-5.387" fill="#2EB67D"/>
+              <path d="M34.048 54a5.381 5.381 0 005.376-5.387 5.381 5.381 0 00-5.376-5.386h-5.376v5.386A5.381 5.381 0 0034.048 54m0-14.365h14.336a5.381 5.381 0 005.376-5.386 5.381 5.381 0 00-5.376-5.387H34.048a5.381 5.381 0 00-5.376 5.387 5.381 5.381 0 005.376 5.386" fill="#ECB22E"/>
+              <path d="M0 34.249a5.381 5.381 0 005.376 5.386 5.381 5.381 0 005.376-5.386v-5.387H5.376A5.381 5.381 0 000 34.25m14.336 0v14.364A5.381 5.381 0 0019.712 54a5.381 5.381 0 005.376-5.387V34.25a5.381 5.381 0 00-5.376-5.387 5.381 5.381 0 00-5.376 5.387" fill="#E01E5A"/>
+            </g>
+          </svg>
+          {loading ? "Redirecting..." : "Sign in with Slack"}
+        </button>
       </div>
     </div>
   );
